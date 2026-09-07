@@ -126,7 +126,7 @@
     
     <rect x="200" y="430" width="200" height="80" class="box-llm"/>
     <text x="300" y="460" class="text-label text-white">Groq API</text>
-    <text x="300" y="480" class="text-small">llama-3.1-70b-versatile</text>
+    <text x="300" y="480" class="text-small">openai/gpt-oss-20b</text>
     <text x="300" y="495" class="text-small">Fast Inference</text>
     
     <!-- Arrows to LLM -->

@@ -25,7 +25,7 @@ app.add_middleware(
 
 llm = ChatGroq(
     groq_api_key=os.getenv("GROQ_API_KEY").strip(),
-    model_name="llama3-8b-8192"
+    model_name="openai/gpt-oss-20b"
 )
 
 class ChatRequest(BaseModel):
@@ -88,43 +88,39 @@ def get_system_prompt(message_type):
         "greeting": """You are a friendly RCA assistant. Respond to greetings warmly but briefly (1-2 sentences). Offer to help with error analysis or technical questions.""",
         "simple_question": """You are a helpful technical assistant. Answer the question concisely in 1-3 sentences. Be direct and practical.""",
         "complex_question": """You are a helpful technical assistant. Answer the question concisely. Be direct and practical.""",
-        "error_log": """You are an expert Site Reliability Engineer performing a Root Cause Analysis. Analyze the provided log or error details and respond using exactly this format and heading order:
+        "error_log": """You are an RCA expert. You MUST respond using ONLY the exact structure below. Do NOT add any extra headings, tables, preamble, or sections. Do NOT deviate from this format under any circumstances.
 
-    RCA REPORT [No Incident ID provided]
+RCA REPORT [No Incident ID provided]
 
 ## INCIDENT SUMMARY
-
-    <brief description of what happened>
+[your content here]
 
 ## TIMELINE OF EVENTS
-
-<chronological sequence of events leading to the incident>
+[your content here]
 
 ## ROOT CAUSE
-
-<the primary root cause identified from the log>
+[your content here]
 
 ## CONTRIBUTING FACTORS
-
-<secondary factors that contributed to the issue>
+[your content here]
 
 ## IMMEDIATE FIX
-
-<steps to immediately resolve the issue>
+[your content here]
 
 ## PERMANENT FIX
-
-<long-term solution to prevent recurrence>
+[your content here]
 
 ## DETECTION GAPS
-
-<what monitoring or alerting was missing>
+[your content here]
 
 ## PREVENTION
+[your content here]
 
-<steps to prevent this class of issue in future>
-
-    Do not add other headings, an incident ID, or a preamble. Do not use fenced code blocks for ordinary values or one-line examples. Use a fenced code block only when a multi-line code or configuration example is necessary. Be specific and technical. Base your analysis strictly on the provided input.""",
+STRICT RULES:
+- Output ONLY the 8 sections above, nothing else
+- Do NOT add tables, extra headings, or summaries outside these sections
+- Do NOT include any text before "RCA REPORT"
+- Be specific and base analysis strictly on the provided log""",
         "general": """You are a helpful AI assistant specializing in system troubleshooting. Respond appropriately to the user's message. Keep it conversational and offer to help with technical issues."""
     }
     return prompts.get(message_type, prompts["general"])
@@ -157,11 +153,6 @@ async def execute(request: ChatRequest):
         
         # Get system prompt and load knowledge base
         system_prompt = get_system_prompt(message_type)
-        system_prompt += (
-            "\n\nResponse formatting: Do not wrap ordinary terms, values, or one-line examples "
-            "in fenced code blocks. Use fenced code blocks only for actual multi-line code "
-            "or when the user explicitly asks for code formatting."
-        )
         kb_content = load_knowledge_base()
         if kb_content:
             system_prompt += f"\n\nKnowledge Base Context:\n{kb_content[:4000]}"
