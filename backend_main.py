@@ -25,7 +25,7 @@ app.add_middleware(
 
 llm = ChatGroq(
     groq_api_key=os.getenv("GROQ_API_KEY").strip(),
-    model_name="openai/gpt-oss-120b"
+    model_name="llama3-8b-8192"
 )
 
 class ChatRequest(BaseModel):
@@ -59,25 +59,27 @@ def load_knowledge_base():
 def get_message_type(text):
     """Detect message type to determine response style"""
     text_lower = text.lower()
-    
+
     greetings = ["hi", "hello", "hey", "good morning", "good afternoon", "good evening"]
     if any(greeting in text_lower for greeting in greetings) and len(text) < 20:
         return "greeting"
-    
-    error_log_indicators = ["traceback", "stack trace", "at line", "exception in thread", "caused by",
-                            "errno", "exit code", "segmentation fault", "core dumped"]
-    has_error_indicator = any(kw in text_lower for kw in error_log_indicators)
-    looks_like_log = len(text) > 200 and ("\n" in text)
-    if has_error_indicator or looks_like_log:
-        return "error_log"
 
+    # Simple questions take priority over error log detection
     simple_questions = ["what is", "what are", "how to", "can you", "do you", "is it", "why is", "when is", "who is"]
     if any(q in text_lower for q in simple_questions):
         return "simple_question"
-    
+
+    # Only treat as error log if it looks like an actual log (multiline + keywords)
+    error_log_indicators = ["traceback", "stack trace", "exception in thread", "caused by",
+                            "errno", "exit code", "segmentation fault", "core dumped"]
+    has_error_indicator = any(kw in text_lower for kw in error_log_indicators)
+    looks_like_log = len(text) > 200 and "\n" in text
+    if has_error_indicator or looks_like_log:
+        return "error_log"
+
     if "?" in text and len(text) > 50:
         return "complex_question"
-    
+
     return "general"
 
 def get_system_prompt(message_type):
