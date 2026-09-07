@@ -46,7 +46,7 @@ Error Input → Analyze → Generate Hypothesis → Choose Tool → Validate →
 
 ### Backend
 - **Framework**: FastAPI
-- **LLM**: Groq API (llama-3.1-70b-versatile)
+- **LLM**: Groq API (openai/gpt-oss-20b)
 - **Agent Framework**: LangGraph
 - **Knowledge Base**: Local filesystem (upgradeable to cloud storage)
 
@@ -167,7 +167,7 @@ See `DEPLOY_RENDER.md` for step-by-step instructions using `render.yaml`
 ### Environment Variables
 ```env
 GROQ_API_KEY=your_groq_api_key_here
-MODEL_NAME=llama-3.1-70b-versatile
+MODEL_NAME=openai/gpt-oss-20b
 BACKEND_URL=https://rca-chat-backend.onrender.com  # For production
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=your_strong_password

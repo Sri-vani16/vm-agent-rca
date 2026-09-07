@@ -35,7 +35,7 @@ This project deploys as two Render web services:
 6. Keep or update:
 
    ```text
-   MODEL_NAME=llama-3.1-70b-versatile
+   MODEL_NAME=openai/gpt-oss-20b
    ADMIN_USERNAME=admin
    BACKEND_URL=https://rca-chat-backend.onrender.com
    ```
@@ -52,7 +52,7 @@ Build Command: pip install -r backend_requirements.txt
 Start Command: uvicorn backend_main:app --host 0.0.0.0 --port $PORT
 Environment:
   GROQ_API_KEY=<secret>
-  MODEL_NAME=llama-3.1-70b-versatile
+  MODEL_NAME=openai/gpt-oss-20b
 ```
 
 Frontend service:

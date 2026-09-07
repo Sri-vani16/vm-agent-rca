@@ -94,7 +94,7 @@
                             ▼
         ┌──────────────────────────────────────┐
         │  Groq API (LLM Inference)            │
-        │  Model: llama-3.1-70b-versatile      │
+        │  Model: openai/gpt-oss-20b      │
         └──────────────────────────────────────┘
 ```
 
@@ -230,7 +230,7 @@ nano .env    # or use your preferred editor
 
 # Required variables:
 # GROQ_API_KEY=your_actual_groq_api_key_here
-# MODEL_NAME=llama-3.1-70b-versatile
+# MODEL_NAME=openai/gpt-oss-20b
 ```
 
 ### Step 5: Create Knowledge Base Directory
@@ -269,7 +269,7 @@ Create a `.env` file in the project root with the following variables:
 # GROQ API Configuration (REQUIRED)
 # ============================================
 GROQ_API_KEY=your_groq_api_key_from_console.groq.com
-MODEL_NAME=llama-3.1-70b-versatile
+MODEL_NAME=openai/gpt-oss-20b
 
 # ============================================
 # Backend Configuration
@@ -389,7 +389,7 @@ cat .gitignore | grep .env
      - `GROQ_API_KEY`: Your Groq API key
      - `ADMIN_PASSWORD`: Strong password for admin panel
    - Keep defaults for:
-     - `MODEL_NAME`: llama-3.1-70b-versatile
+     - `MODEL_NAME`: openai/gpt-oss-20b
      - `ADMIN_USERNAME`: admin
      - `BACKEND_URL`: Will be auto-set by Render
 

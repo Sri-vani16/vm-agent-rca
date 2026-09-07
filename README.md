@@ -45,7 +45,7 @@ pip install -r requirements.txt
 Create a `.env` file in the project root:
 ```
 GROQ_API_KEY=your_groq_api_key_here
-MODEL_NAME=llama-3.1-70b-versatile
+MODEL_NAME=openai/gpt-oss-20b
 ```
 
 Get your Groq API key from: https://console.groq.com
@@ -140,7 +140,7 @@ The app will open at `http://localhost:8501`
 
 ```env
 GROQ_API_KEY=your_api_key          # Required: Groq API key
-MODEL_NAME=llama-3.1-70b-versatile # Optional: LLM model name
+MODEL_NAME=openai/gpt-oss-20b # Optional: LLM model name
 ```
 
 ### Customization

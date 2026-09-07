@@ -359,7 +359,7 @@ graph LR
     end
     
     subgraph External["🔗 External Services"]
-        GroqAPI["Groq API<br/>LLM Inference<br/>llama-3.1-70b-versatile"]
+        GroqAPI["Groq API<br/>LLM Inference<br/>openai/gpt-oss-20b"]
         GitHub["GitHub Repository<br/>Source Code<br/>Auto-deploy on push"]
     end
     
