@@ -3,6 +3,7 @@ uvicorn
 langchain
 langchain-core
 langchain-openai
+langgraph
 openai
 python-dotenv
 requests

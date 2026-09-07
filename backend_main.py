@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from dotenv import load_dotenv
+from rca_agent import run_rca
 import os
 from pathlib import Path
 
@@ -138,8 +139,14 @@ async def health_check():
 async def execute(request: ChatRequest):
     try:
         message_type = request.message_type or get_message_type(request.message)
-        system_prompt = get_system_prompt(message_type)
 
+        # Route error logs through the LangGraph RCA agent
+        if message_type == "error_log":
+            result = run_rca(request.message)
+            return ChatResponse(response=result["fix"], message_type=message_type)
+
+        # Simple/general questions go directly to LLM
+        system_prompt = get_system_prompt(message_type)
         kb_content = load_knowledge_base()
         if kb_content:
             system_prompt += f"\n\nKnowledge Base Context:\n{kb_content[:4000]}"
@@ -149,7 +156,6 @@ async def execute(request: ChatRequest):
             HumanMessage(content=request.message)
         ]
         response = llm.invoke(messages)
-
         return ChatResponse(response=response.content, message_type=message_type)
 
     except Exception as e:

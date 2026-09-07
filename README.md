@@ -1,253 +1,222 @@
-# RCA Chat Assistant
+# RCA Agent — AI-Powered Root Cause Analysis
 
-A professional  Root Cause Analysis (RCA) agent built with Streamlit, LangChain, and Groq API. Analyze error logs, troubleshoot technical issues, and get intelligent responses tailored to your query type.
+An intelligent Root Cause Analysis (RCA) assistant powered by OpenAI GPT-4o-mini and LangGraph. Paste an error log or stack trace and get a structured RCA report. Ask general or technical questions and get concise answers.
 
-## 🎯 Features
+---
 
-- ** User Interface**: Modern, intuitive chat UI with fixed header and scrollable message area
-- **Chat History Management**: Create, switch between, and manage multiple chat sessions
-- **Intelligent Response Generation**: LLM automatically detects message type and tailors response length:
-  - **Greetings**: Brief, friendly responses (1-2 sentences)
-  - **Error Logs**: Detailed analysis with root cause, solution, and prevention steps
-  - **Simple Questions**: Concise, direct answers (1-3 sentences)
-  - **Complex Questions**: Comprehensive, well-structured explanations
-  - **General Messages**: Conversational, helpful responses
+## How It Works
 
+When a user sends a message, the backend automatically detects the type of input and routes it accordingly:
 
-## 📋 Prerequisites
-
-- Python 3.8+
-- Streamlit
-- LangChain
-- Groq API Key
-- Required Python packages (see Installation)
-
-## 🚀 Installation
-
-### 1. Clone the Repository
-```bash
-git clone <repository-url>
-cd rca-agent
+```
+User Input
+    │
+    ├── Greeting / Simple Question ──► Direct LLM response
+    │
+    └── Error Log / Stack Trace ──► LangGraph RCA Pipeline
+                                          │
+                                    1. Analyze Logs
+                                          │
+                                    2. Generate Hypothesis
+                                          │
+                                    3. Choose Diagnostic Tool
+                                          │
+                                    4. Validate (run tool)
+                                          │
+                                    5. Suggest Fix (RCA Report)
 ```
 
-### 2. Create Virtual Environment
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+### LangGraph Agent Pipeline
+
+| Step | Node | Description |
+|------|------|-------------|
+| 1 | `analyze` | LLM analyzes the error log and identifies what went wrong |
+| 2 | `hypothesis` | LLM generates one specific root cause hypothesis |
+| 3 | `choose_tool` | LLM selects and calls the best diagnostic tool from the registry |
+| 4 | `validate` | Tool is executed; result determines if hypothesis is confirmed |
+| 5 | `fix` | LLM generates the final structured RCA report |
+
+If the hypothesis is not validated and attempts < 3, the agent retries from step 2 with a new hypothesis.
+
+### Diagnostic Tools (`tools.py`)
+
+| Tool | Description |
+|------|-------------|
+| `check_network_port` | Checks TCP connectivity to a host and port |
+| `check_http_endpoint` | Sends a GET request to verify an HTTP endpoint |
+| `inspect_file_or_log` | Checks if a file exists and returns its size |
+| `check_system_process` | Checks if a process is running on the OS |
+
+---
+
+## RCA Report Format
+
+For every error log, the agent outputs a structured report:
+
+```
+RCA REPORT [No Incident ID provided]
+
+## INCIDENT SUMMARY
+## TIMELINE OF EVENTS
+## ROOT CAUSE
+## CONTRIBUTING FACTORS
+## IMMEDIATE FIX
+## PERMANENT FIX
+## DETECTION GAPS
+## PREVENTION
 ```
 
-### 3. Install Dependencies
-```bash
-pip install -r requirements.txt
-```
+---
 
-### 4. Set Up Environment Variables
-Create a `.env` file in the project root:
-```
-GROQ_API_KEY=your_groq_api_key_here
-MODEL_NAME=openai/gpt-oss-20b
-```
-
-Get your Groq API key from: https://console.groq.com
-
-### 5. Create Knowledge Base Directory
-```bash
-mkdir knowledge_base
-```
-
-## 📁 Project Structure
+## Project Structure
 
 ```
 rca-agent/
-├── main.py                 # Landing page with navigation
-├── pages/
-│   ├── admin.py           # Admin panel for document upload
-│   └── user.py            # Main chat interface
-├── rca_agent.py           # LangGraph RCA pipeline (optional)
-├── knowledge_base/        # Directory for uploaded documents
-├── .env                   # Environment variables (create this)
-├── requirements.txt       # Python dependencies
-└── README.md             # This file
+├── backend_main.py       # FastAPI backend — API routes, message routing, serves frontend
+├── rca_agent.py          # LangGraph agent pipeline (analyze → hypothesis → tool → validate → fix)
+├── tools.py              # Diagnostic tool registry (network, HTTP, file, process checks)
+├── static/
+│   └── index.html        # HTML/JS chat frontend
+├── knowledge_base/       # Upload .txt/.log/.md files to give the agent extra context
+├── requirements.txt
+├── .env
+└── .env.example
 ```
 
-## 🎮 Usage
+---
 
-### Starting the Application
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| LLM | OpenAI GPT-4o-mini |
+| Agent Orchestration | LangGraph |
+| LLM Framework | LangChain |
+| Backend | FastAPI + Uvicorn |
+| Frontend | HTML + CSS + JavaScript (Vanilla) |
+| Deployment | Render |
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Python 3.10+
+- OpenAI API key — get one at [platform.openai.com](https://platform.openai.com)
+
+### Installation
 
 ```bash
-streamlit run main.py
+git clone https://github.com/your-username/rca-agent.git
+cd rca-agent
+python -m venv venv
+venv\Scripts\activate        # Windows
+# source venv/bin/activate   # macOS/Linux
+pip install -r requirements.txt
 ```
 
-The app will open at `http://localhost:8501`
+### Configuration
 
-### Navigation
+Copy `.env.example` to `.env` and fill in your API key:
 
-1. **Landing Page** (`main.py`):
-   - Welcome screen with navigation cards
-   - Links to User Chat and Admin Panel
-
-2. **User Chat** (`pages/user.py`):
-   - Main chat interface
-   - Type messages or paste error logs
-   - View chat history in sidebar
-   - Create new chat sessions
-
-3. **Admin Panel** (`pages/admin.py`):
-   - Upload documents to knowledge base
-   - Manage RCA analysis documents
-   - Documents are used as context for responses
-
-### Sidebar Controls
-
-- **☰ Hamburger Menu**: Toggle sidebar open/closed
-- **💬 Chat History**: View all previous conversations
-- **🆕 New Chat**: Start a fresh conversation
-- **Chat Items**: Click any chat to switch between conversations
-
-
-## 📚 Knowledge Base
-
-### Adding Documents
-
-1. Go to **Admin Panel** (`pages/admin.py`)
-2. Upload `.txt`, `.log`, or `.md` files
-3. Documents are stored in `knowledge_base/` directory
-4. Automatically referenced in chat responses
-
-### Supported Formats
-
-- `.txt` - Plain text files
-- `.log` - Log files
-- `.md` - Markdown files
-
-## 🎨 UI/UX Design
-
-### Color Scheme
-- **Primary**: Navy (#1a2332)
-- **Accent**: Gold (#c9b99a)
-- **Background**: Light Gray (#f4f6f9)
-- **Text**: White (#f5f0e8) on dark, Navy on light
-
-### Layout
-- **Fixed Header**: Navy gradient header with title
-- **Scrollable Chat Area**: Messages with custom scrollbar
-- **Fixed Input**: Chat input at bottom
-- **Collapsible Sidebar**: Chat history and navigation
-
-## 🔧 Configuration
-
-### Environment Variables
+```bash
+cp .env.example .env
+```
 
 ```env
-GROQ_API_KEY=your_api_key          # Required: Groq API key
-MODEL_NAME=openai/gpt-oss-20b # Optional: LLM model name
+OPENAI_API_KEY=sk-your-openai-api-key-here
 ```
 
-### Customization
+### Run
 
-Edit `pages/user.py` to customize:
-- **Colors**: Modify hex values in CSS
-- **Model**: Change `MODEL_NAME` in `.env`
-- **Response Prompts**: Edit system prompts in `chat_response()` function
-- **Message Types**: Add/modify detection logic in `get_message_type()` function
-
-## 📝 Message Type Detection
-
-The system automatically classifies messages:
-
-| Type | Detection | Response Style |
-|------|-----------|-----------------|
-| Greeting | Contains: hi, hello, hey (< 20 chars) | Brief, friendly |
-| Error Log | Contains: error, exception, failed, etc. OR (> 150 chars) | Detailed analysis |
-| Simple Question | Contains: what is, how to, can you, etc. (< 50 chars) | Concise (1-3 sentences) |
-| Complex Question | Contains: ? AND (> 50 chars) | Comprehensive |
-| General | Default | Conversational |
-
-## 🐛 Troubleshooting
-
-### Sidebar Not Showing
-- Click the hamburger menu (☰) button to toggle
-- Check browser console for JavaScript errors
-- Clear browser cache and refresh
-
-### Chat Not Responding
-- Verify Groq API key in `.env`
-- Check internet connection
-- Ensure `GROQ_API_KEY` is set correctly
-- Check Groq API status: https://console.groq.com
-
-### Knowledge Base Not Working
-- Ensure `knowledge_base/` directory exists
-- Upload documents via Admin Panel
-- Supported formats: `.txt`, `.log`, `.md`
-- Check file permissions
-
-### Layout Issues
-- Use modern browser (Chrome, Firefox, Safari, Edge)
-- Clear browser cache
-- Disable browser extensions
-- Try different screen resolution
-
-## 📦 Dependencies
-
-```
-streamlit>=1.28.0
-langchain>=0.1.0
-langchain-groq>=0.0.1
-python-dotenv>=1.0.0
+```bash
+python backend_main.py
 ```
 
-See `requirements.txt` for complete list.
+Open `http://localhost:8000` in your browser.
 
-## 🔐 Security
+---
 
-- **API Keys**: Never commit `.env` file to version control
-- **Knowledge Base**: Keep sensitive documents in `knowledge_base/` directory
-- **Session State**: Chat history stored locally in browser session
-- **No Data Logging**: Responses not logged externally
+## API Endpoints
 
-## 📖 Example Queries
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/` | Serves the chat UI (`index.html`) |
+| `GET` | `/health` | Health check — returns model and config status |
+| `POST` | `/execute` | Main chat endpoint — routes to agent or LLM |
+| `POST` | `/knowledge-base/upload` | Upload `.txt`, `.log`, `.md` files to knowledge base |
+| `GET` | `/knowledge-base` | List files currently in the knowledge base |
 
-### Error Log Analysis
+### POST `/execute` — Request / Response
+
+**Request:**
+```json
+{
+  "message": "java.lang.NullPointerException: Cannot invoke Order.getShippingAddress()"
+}
 ```
-Paste your error log here:
-[Error stack trace...]
+
+**Response:**
+```json
+{
+  "response": "RCA REPORT [No Incident ID provided]\n\n## INCIDENT SUMMARY\n...",
+  "message_type": "error_log"
+}
 ```
-Response: Detailed analysis with root cause, solution, and prevention
 
-### Simple Question
+---
+
+## Knowledge Base
+
+You can upload reference documents (runbooks, architecture docs, past incident reports) to the `knowledge_base/` folder. The agent will include this context when generating responses for non-error-log queries.
+
+Supported formats: `.txt`, `.log`, `.md`
+
+Upload via API:
+```bash
+curl -X POST http://localhost:8000/knowledge-base/upload \
+  -F "files=@runbook.md"
 ```
-What is a 404 error?
-```
-Response: Brief, direct explanation
 
-### Complex Question
-```
-How do I optimize database queries for better performance in a high-traffic application?
-```
-Response: Comprehensive guide with examples
+---
 
+## Deploying to Render
 
-## 📄 License
+1. Push your code to GitHub
+2. Go to [render.com](https://render.com) → New → Web Service
+3. Connect your GitHub repository
+4. Set the following:
 
-This project is licensed under the MIT License - see LICENSE file for details.
+| Setting | Value |
+|---------|-------|
+| Build Command | `pip install -r requirements.txt` |
+| Start Command | `python backend_main.py` |
+| Environment Variable | `OPENAI_API_KEY` = `sk-...` |
 
-## 🆘 Support
+5. Deploy — your app will be live at `https://your-app.onrender.com`
 
-For issues or questions:
-1. Check the Troubleshooting section
-2. Review error messages in browser console
-3. Check Groq API documentation: https://console.groq.com/docs
-4. Open an issue in the repository
+The frontend and backend are served from the same service — no separate deployment needed.
 
-## 🚀 Future Enhancements
+---
 
-- [ ] Multi-language support
-- [ ] Export chat history as PDF
-- [ ] Advanced search in chat history
-- [ ] Custom LLM model selection
-- [ ] Real-time collaboration
-- [ ] Voice input support
-- [ ] Integration with ticketing systems
-- [ ] Analytics dashboard
+## Message Type Detection
 
+The backend automatically classifies incoming messages:
+
+| Type | Trigger | Handled By |
+|------|---------|------------|
+| `greeting` | "hi", "hello", "hey" (< 20 chars) | Direct LLM |
+| `simple_question` | "what is", "how to", "why is", etc. | Direct LLM |
+| `complex_question` | Contains `?` and > 50 chars | Direct LLM |
+| `error_log` | Stack trace keywords, log patterns, or > 200 chars | LangGraph Agent |
+| `general` | Everything else | Direct LLM |
+
+---
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `OPENAI_API_KEY` | Yes | Your OpenAI API key |
+| `PORT` | No | Port to run the server on (default: `8000`, auto-set by Render) |
