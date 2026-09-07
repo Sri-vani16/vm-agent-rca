@@ -1,10 +1,10 @@
-langgraph
+fastapi
+uvicorn
 langchain
 langchain-core
-langchain-community
-langchain-groq
-groq
+langchain-openai
+openai
 python-dotenv
 requests
-streamlit
 psutil
+python-multipart

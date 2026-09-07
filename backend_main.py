@@ -1,8 +1,10 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from langchain_groq import ChatGroq
-from langchain_core.messages import HumanMessage
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage, SystemMessage
 from dotenv import load_dotenv
 import os
 from pathlib import Path
@@ -13,8 +15,8 @@ app = FastAPI(title="RCA Chat API", version="1.0.0")
 KB_DIR = Path("knowledge_base")
 ALLOWED_KB_EXTENSIONS = {".txt", ".log", ".md"}
 KB_DIR.mkdir(exist_ok=True)
+Path("static").mkdir(exist_ok=True)
 
-# Enable CORS for all origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -23,19 +25,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-llm = ChatGroq(
-    groq_api_key=os.getenv("GROQ_API_KEY").strip(),
-    model_name="openai/gpt-oss-20b"
+llm = ChatOpenAI(
+    api_key=os.getenv("OPENAI_API_KEY").strip(),
+    model="gpt-4o-mini",
+    temperature=0.3
 )
 
 class ChatRequest(BaseModel):
     message: str = None
     query: str = None
     message_type: str = None
-    
+
     def __init__(self, **data):
         super().__init__(**data)
-        # Map 'query' to 'message' if query is provided
         if self.query and not self.message:
             self.message = self.query
 
@@ -44,7 +46,6 @@ class ChatResponse(BaseModel):
     message_type: str
 
 def load_knowledge_base():
-    """Load uploaded knowledge base files from the backend service."""
     content = []
     for file_path in sorted(KB_DIR.glob("*")):
         if file_path.suffix.lower() not in ALLOWED_KB_EXTENSIONS:
@@ -57,25 +58,30 @@ def load_knowledge_base():
     return "".join(content)
 
 def get_message_type(text):
-    """Detect message type to determine response style"""
     text_lower = text.lower()
 
     greetings = ["hi", "hello", "hey", "good morning", "good afternoon", "good evening"]
-    if any(greeting in text_lower for greeting in greetings) and len(text) < 20:
+    if any(g in text_lower for g in greetings) and len(text) < 20:
         return "greeting"
 
-    # Simple questions take priority over error log detection
+    # Check for error log indicators first — before simple question check
+    error_log_indicators = [
+        "traceback", "stack trace", "exception in thread", "caused by",
+        "errno", "exit code", "segmentation fault", "core dumped",
+        "nullpointerexception", "null pointer", "error:", "exception:",
+        "failed:", "warn ", "info ", "debug ", "fatal",
+        "at com.", "at org.", "at java.", "at sun.",
+        "internal server error", "connection refused", "timeout",
+        "order not found", "shipment creation aborted"
+    ]
+    has_error_indicator = any(kw in text_lower for kw in error_log_indicators)
+    looks_like_log = len(text) > 200
+    if has_error_indicator or looks_like_log:
+        return "error_log"
+
     simple_questions = ["what is", "what are", "how to", "can you", "do you", "is it", "why is", "when is", "who is"]
     if any(q in text_lower for q in simple_questions):
         return "simple_question"
-
-    # Only treat as error log if it looks like an actual log (multiline + keywords)
-    error_log_indicators = ["traceback", "stack trace", "exception in thread", "caused by",
-                            "errno", "exit code", "segmentation fault", "core dumped"]
-    has_error_indicator = any(kw in text_lower for kw in error_log_indicators)
-    looks_like_log = len(text) > 200 and "\n" in text
-    if has_error_indicator or looks_like_log:
-        return "error_log"
 
     if "?" in text and len(text) > 50:
         return "complex_question"
@@ -83,93 +89,91 @@ def get_message_type(text):
     return "general"
 
 def get_system_prompt(message_type):
-    """Get system prompt based on message type"""
     prompts = {
-        "greeting": """You are a friendly RCA assistant. Respond to greetings warmly but briefly (1-2 sentences). Offer to help with error analysis or technical questions.""",
-        "simple_question": """You are a helpful technical assistant. Answer the question concisely in 1-3 sentences. Be direct and practical.""",
-        "complex_question": """You are a helpful technical assistant. Answer the question concisely. Be direct and practical.""",
-        "error_log": """You are an RCA expert. You MUST respond using ONLY the exact structure below. Do NOT add any extra headings, tables, preamble, or sections. Do NOT deviate from this format under any circumstances.
-
-RCA REPORT [No Incident ID provided]
-
-## INCIDENT SUMMARY
-[your content here]
-
-## TIMELINE OF EVENTS
-[your content here]
-
-## ROOT CAUSE
-[your content here]
-
-## CONTRIBUTING FACTORS
-[your content here]
-
-## IMMEDIATE FIX
-[your content here]
-
-## PERMANENT FIX
-[your content here]
-
-## DETECTION GAPS
-[your content here]
-
-## PREVENTION
-[your content here]
-
-STRICT RULES:
-- Output ONLY the 8 sections above, nothing else
-- Do NOT add tables, extra headings, or summaries outside these sections
-- Do NOT include any text before "RCA REPORT"
-- Be specific and base analysis strictly on the provided log""",
-        "general": """You are a helpful AI assistant specializing in system troubleshooting. Respond appropriately to the user's message. Keep it conversational and offer to help with technical issues."""
+        "greeting": "You are a friendly RCA assistant. Respond warmly but briefly in 1-2 sentences. Offer to help with error analysis or technical questions.",
+        "simple_question": "You are a helpful technical assistant. Answer concisely in 1-3 sentences. Be direct and practical.",
+        "complex_question": "You are a helpful technical assistant. Answer concisely and directly.",
+        "error_log": (
+            "You are an RCA report generator. "
+            "You MUST output ONLY the following report structure. "
+            "Do NOT greet the user. Do NOT add tables. Do NOT add any text before 'RCA REPORT'. "
+            "Do NOT add any sections other than the 8 listed below. "
+            "Your entire response must follow this exact format:\n\n"
+            "RCA REPORT [No Incident ID provided]\n\n"
+            "## INCIDENT SUMMARY\n"
+            "<content>\n\n"
+            "## TIMELINE OF EVENTS\n"
+            "<content>\n\n"
+            "## ROOT CAUSE\n"
+            "<content>\n\n"
+            "## CONTRIBUTING FACTORS\n"
+            "<content>\n\n"
+            "## IMMEDIATE FIX\n"
+            "<content>\n\n"
+            "## PERMANENT FIX\n"
+            "<content>\n\n"
+            "## DETECTION GAPS\n"
+            "<content>\n\n"
+            "## PREVENTION\n"
+            "<content>"
+        ),
+        "general": "You are a helpful AI assistant specializing in system troubleshooting. Keep responses conversational and helpful."
     }
     return prompts.get(message_type, prompts["general"])
 
 @app.get("/")
-async def root():
-    return {
-        "message": "RCA Chat API",
-        "version": "1.0.0",
-        "description": "Root Cause Analysis Chat Assistant API"
-    }
+async def serve_index():
+    return FileResponse("static/index.html")
 
 @app.get("/health")
 async def health_check():
     return {
         "status": "healthy",
-        "service": "RCA Chat API",
-        "groq_configured": bool(os.getenv("GROQ_API_KEY")),
-        "knowledge_base_files": len([
-            file_path for file_path in KB_DIR.glob("*")
-            if file_path.suffix.lower() in ALLOWED_KB_EXTENSIONS
-        ])
+        "model": "gpt-4o-mini",
+        "openai_configured": bool(os.getenv("OPENAI_API_KEY")),
+        "knowledge_base_files": len([f for f in KB_DIR.glob("*") if f.suffix.lower() in ALLOWED_KB_EXTENSIONS])
     }
 
 @app.post("/execute", response_model=ChatResponse)
 async def execute(request: ChatRequest):
     try:
-        # Detect the message type
         message_type = request.message_type or get_message_type(request.message)
-        
-        # Get system prompt and load knowledge base
         system_prompt = get_system_prompt(message_type)
+
         kb_content = load_knowledge_base()
         if kb_content:
             system_prompt += f"\n\nKnowledge Base Context:\n{kb_content[:4000]}"
-        
-        # Call LLM
-        messages = [HumanMessage(content=system_prompt + "\n\nUser message:\n" + request.message)]
+
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=request.message)
+        ]
         response = llm.invoke(messages)
-        
-        return ChatResponse(
-            response=response.content,
-            message_type=message_type
-        )
-        
+
+        return ChatResponse(response=response.content, message_type=message_type)
+
     except Exception as e:
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/knowledge-base/upload")
+async def upload_knowledge_base(files: list[UploadFile] = File(...)):
+    saved = []
+    for file in files:
+        if not any(file.filename.endswith(ext) for ext in ALLOWED_KB_EXTENSIONS):
+            continue
+        content = await file.read()
+        (KB_DIR / file.filename).write_bytes(content)
+        saved.append(file.filename)
+    return {"count": len(saved), "files": saved}
+
+@app.get("/knowledge-base")
+async def list_knowledge_base():
+    files = [f.name for f in KB_DIR.glob("*") if f.suffix.lower() in ALLOWED_KB_EXTENSIONS]
+    return {"files": files}
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 if __name__ == "__main__":
     import uvicorn
